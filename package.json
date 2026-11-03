@@ -8,7 +8,8 @@
     "test": "vitest run",
     "build": "tsc --noEmit",
     "scan": "tsx src/cli.ts",
-    "guard": "tsx src/guard-cli.ts"
+    "guard": "tsx src/guard-cli.ts",
+    "proxy": "tsx src/proxy-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

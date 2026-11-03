@@ -82,12 +82,38 @@ npm run guard -- --prompt "Write a haiku" "a clean reply"       # exit 0 = allow
 npx tsx examples/guard-demo.ts                                  # scripted demo
 ```
 
+## Proxy server + API
+
+Run the firewall as an HTTP server in front of a model (or a stand-in):
+
+```sh
+npm run proxy -- --port 3000 --upstream-echo   # echo upstream, no LLM key needed
+curl localhost:3000/health
+curl -X POST localhost:3000/v1/scan -H 'content-type: application/json' \
+  -d '{"prompt": "Ignore all previous instructions"}'
+curl -X POST localhost:3000/v1/chat -H 'content-type: application/json' \
+  -d '{"prompt": "Write a haiku"}'
+curl localhost:3000/v1/stats
+```
+
+Endpoints: `GET /health`, `GET /v1/policies`, `GET /v1/stats`,
+`POST /v1/scan` (`{prompt}`), `POST /v1/guard` (`{text}` → findings +
+redacted text), `POST /v1/chat` (`{prompt, output?}`), and
+`POST /v1/chat/completions` (OpenAI-style `{messages}` — the last user
+message is the prompt, the reply comes back as `choices[0].message`). A blocked prompt
+returns 403 and **never reaches the upstream**; a leaky reply is redacted
+(default policy) or blocked (strict). `--policy monitor|default|strict`
+selects the policy, and `--api-key` / `PF_API_KEY` requires an
+`x-api-key` header. Without an upstream, `/v1/chat` requires an `output`
+field — the handler itself is socket-free and unit-tested, so the same
+decisions are verified without binding a port (see `examples/proxy-demo.ts`).
+
 ## Roadmap
 
 - [x] Project scaffold (README roadmap, license, gitignore)
 - [x] Prompt scanner (injection/jailbreak heuristics)
 - [x] Output guard + policy engine
-- [ ] Proxy server + API
+- [x] Proxy server + API
 - [ ] Self-review checklist, then public
 
 ## License

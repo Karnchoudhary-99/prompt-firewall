@@ -32,3 +32,12 @@ export {
   type Severity,
   type Verdict,
 } from "./types.js";
+export {
+  POLICIES,
+  createProxyHandler,
+  type ProxyOptions,
+  type ProxyRequest,
+  type ProxyResponse,
+  type ProxyStats,
+} from "./proxy.js";
+export { createProxyServer } from "./server.js";

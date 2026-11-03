@@ -114,7 +114,7 @@ decisions are verified without binding a port (see `examples/proxy-demo.ts`).
 - [x] Prompt scanner (injection/jailbreak heuristics)
 - [x] Output guard + policy engine
 - [x] Proxy server + API
-- [ ] Self-review checklist, then public
+- [x] Self-review checklist, then public
 
 ## License
 

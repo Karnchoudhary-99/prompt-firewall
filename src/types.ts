@@ -39,7 +39,7 @@ export interface ScanResult {
 export interface ScannerOptions {
   /** Score at or above which the verdict becomes "block" (default 70). */
   blockThreshold?: number;
-  /** Score at or above which the verdict becomes "flag" (default 30). */
+  /** Score at or above which the verdict becomes "flag" (default 25). */
   flagThreshold?: number;
   /** Rule ids to skip, e.g. to allow a known-benign pattern in a trusted app. */
   disabledRules?: string[];

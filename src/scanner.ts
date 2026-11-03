@@ -11,7 +11,9 @@ import {
 
 const DEFAULTS = {
   blockThreshold: 70,
-  flagThreshold: 30,
+  // 25 = the weight of a single medium finding, so any medium-or-worse
+  // hit flags the prompt; a lone low finding (weight 10) stays allowed.
+  flagThreshold: 25,
   maxFindings: 25,
 } as const;
 

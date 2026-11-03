@@ -112,7 +112,7 @@ export function createProxyHandler(options: ProxyOptions = {}): {
       return { status: 200, body: { ...stats } };
     }
 
-    const knownPaths = ["/v1/scan", "/v1/guard", "/v1/chat"];
+    const knownPaths = ["/v1/scan", "/v1/guard", "/v1/chat", "/v1/chat/completions"];
     if (knownPaths.includes(path) && method !== "POST") {
       return { status: 405, body: { error: "method not allowed" } };
     }
@@ -143,16 +143,34 @@ export function createProxyHandler(options: ProxyOptions = {}): {
       };
     }
 
-    // POST /v1/chat
-    if (typeof req.body.prompt !== "string" || req.body.prompt.trim() === "") {
+    // POST /v1/chat and POST /v1/chat/completions share the decision
+    // flow; completions just takes the last user message as the prompt and
+    // wraps the answer in the OpenAI-style choices shape.
+    let prompt: string | undefined;
+    let suppliedOutput: string | undefined;
+    if (path === "/v1/chat/completions") {
+      const messages = req.body.messages;
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return badRequest("messages must be a non-empty array");
+      }
+      const userMessages = messages.filter(
+        (m) => isObject(m) && m.role === "user" && typeof m.content === "string",
+      ) as { content: string }[];
+      if (userMessages.length === 0) {
+        return badRequest("messages must include a user message with string content");
+      }
+      prompt = userMessages[userMessages.length - 1]!.content;
+    } else {
+      prompt = req.body.prompt as string | undefined;
+      suppliedOutput = req.body.output as string | undefined;
+    }
+    if (typeof prompt !== "string" || prompt.trim() === "") {
       return badRequest("prompt must be a non-empty string");
     }
-    if (req.body.output !== undefined && typeof req.body.output !== "string") {
+    if (suppliedOutput !== undefined && typeof suppliedOutput !== "string") {
       return badRequest("output must be a string when provided");
     }
-    const scan = scanPrompt(req.body.prompt, options.scannerOptions);
-    // A blocked input never reaches the upstream — unless the policy says
-    // never to block (monitor), in which case it is flagged and proceeds.
+    const scan = scanPrompt(prompt, options.scannerOptions);
     if (scan.verdict === "block") {
       const early = applyPolicy(scan, undefined, undefined, policy);
       if (early.action === "block") {
@@ -161,24 +179,36 @@ export function createProxyHandler(options: ProxyOptions = {}): {
         return { status: 403, body: { decision: early, scan } };
       }
     }
-
     let outputText: string;
-    if (typeof req.body.output === "string") {
-      outputText = req.body.output;
+    if (typeof suppliedOutput === "string") {
+      outputText = suppliedOutput;
     } else if (options.upstream) {
       try {
-        outputText = await options.upstream(req.body.prompt);
+        outputText = await options.upstream(prompt);
       } catch {
         return { status: 502, body: { error: "upstream failed" } };
       }
     } else {
       return badRequest("output is required when no upstream is configured");
     }
-
     const guard = scanOutput(outputText, options.guardOptions);
     const decision: PolicyDecision = applyPolicy(scan, outputText, guard, policy);
     stats.chats += 1;
     stats.byAction[decision.action] += 1;
+    if (path === "/v1/chat/completions") {
+      return {
+        status: decision.action === "block" ? 403 : 200,
+        body: {
+          choices:
+            decision.action === "block"
+              ? []
+              : [{ message: { role: "assistant", content: decision.output } }],
+          decision,
+          scan,
+          guard,
+        },
+      };
+    }
     return {
       status: decision.action === "block" ? 403 : 200,
       body: { decision, scan, guard, output: decision.output },

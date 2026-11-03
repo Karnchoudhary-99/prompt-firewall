@@ -98,7 +98,9 @@ curl localhost:3000/v1/stats
 
 Endpoints: `GET /health`, `GET /v1/policies`, `GET /v1/stats`,
 `POST /v1/scan` (`{prompt}`), `POST /v1/guard` (`{text}` → findings +
-redacted text), `POST /v1/chat` (`{prompt, output?}`). A blocked prompt
+redacted text), `POST /v1/chat` (`{prompt, output?}`), and
+`POST /v1/chat/completions` (OpenAI-style `{messages}` — the last user
+message is the prompt, the reply comes back as `choices[0].message`). A blocked prompt
 returns 403 and **never reaches the upstream**; a leaky reply is redacted
 (default policy) or blocked (strict). `--policy monitor|default|strict`
 selects the policy, and `--api-key` / `PF_API_KEY` requires an

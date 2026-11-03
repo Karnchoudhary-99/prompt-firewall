@@ -41,11 +41,52 @@ echo "Write a haiku" | npm run scan -- -             # read from stdin
 npx tsx examples/demo.ts                             # scripted demo
 ```
 
+## Output guard + policy engine
+
+The scanner guards what goes *in*; the output guard guards what comes
+*out*. `scanOutput` detects secrets (OpenAI/AWS/GitHub-style keys),
+credentials (`password:` assignments, Bearer tokens), PII (emails,
+Luhn-valid card numbers) and quoted system instructions, and
+`redactOutput` replaces each span with `[REDACTED:<label>]` — findings
+keep the full match, so a long secret is never half-redacted.
+
+`applyPolicy` combines an input scan and an output guard result into one
+decision under a named policy:
+
+| Policy | Flagged input | Blocked input | Leaky output |
+| --- | --- | --- | --- |
+| `monitor` | flag | flag (never blocks) | flag |
+| `default` | flag | block | redact |
+| `strict` | block | block | block |
+
+Input takes precedence: a blocked input is decided before the output is
+considered. Invalid policies are rejected by `validatePolicy` (empty
+name, unknown action, or `redact` for an input verdict, where there is
+nothing to redact yet).
+
+```ts
+import { applyPolicy, scanOutput, scanPrompt } from "prompt-firewall";
+
+const decision = applyPolicy(
+  scanPrompt("Write a haiku"),
+  "Reach me at alice@example.com",
+  scanOutput("Reach me at alice@example.com"),
+);
+// { action: "redact", output: "Reach me at [REDACTED:EMAIL]", … }
+```
+
+```sh
+npm run guard -- "contact alice@example.com"                    # exit 2 = redact
+npm run guard -- --policy strict "key sk-…"                     # exit 3 = block
+npm run guard -- --prompt "Write a haiku" "a clean reply"       # exit 0 = allow
+npx tsx examples/guard-demo.ts                                  # scripted demo
+```
+
 ## Roadmap
 
 - [x] Project scaffold (README roadmap, license, gitignore)
 - [x] Prompt scanner (injection/jailbreak heuristics)
-- [ ] Output guard + policy engine
+- [x] Output guard + policy engine
 - [ ] Proxy server + API
 - [ ] Self-review checklist, then public
 
